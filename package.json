@@ -1,0 +1,25 @@
+{
+  "name": "powercontroller-server",
+  "version": "0.0.1",
+  "description": "Server to host rest-api listing powercontroller endpoints and there interfaces",
+  "keywords": [
+    "powercontroller",
+    "server"
+  ],
+  "homepage": "https://github.com/dizowned/powercontroller-server#readme",
+  "bugs": {
+    "url": "https://github.com/dizowned/powercontroller-server/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dizowned/powercontroller-server.git"
+  },
+  "license": "ISC",
+  "author": "Dizowned",
+  "type": "commonjs",
+  "main": "powercontroller-server-express.js",
+  "scripts": {
+    "test": "node powercontroller-server-express.js",
+    "run": "node powercontroller-server-express.js"
+  }
+}
