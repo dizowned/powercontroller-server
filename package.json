@@ -19,7 +19,8 @@
   "type": "commonjs",
   "main": "powercontroller-server-express.js",
   "scripts": {
-    "test": "node powercontroller-server-express.js",
-    "run": "node powercontroller-server-express.js"
+    "test": "exec ts-node src/powercontroller-server-express.ts",
+    "start": "exec ts-node src/powercontroller-server-express.ts",
+    "build": "tsc"
   }
 }
