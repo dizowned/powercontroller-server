@@ -1,0 +1,51 @@
+[
+  {
+    "id": 1,
+    "name": "Controller-1",
+    "url": "http://controller-1",
+    "channels":
+    { 
+      "channel1": true,
+      "channel2": false,
+      "channel3": true
+    }
+  },
+  {
+    "id": 2,
+    "name": "Controller-2",
+    "url": "http://controller-2"
+    ,"channels":
+    { 
+      "channel1": true,
+      "channel2": false,
+      "channel3": true
+    }
+  },
+  {
+    "id": 3,
+    "name": "Controller-3",
+    "url": "http://controller-3",
+    "channels":
+    { 
+      "channel1": true,
+      "channel2": false,
+      "channel3": true
+    }
+  },
+  {
+    "id": 4,
+    "name": "Controller-Test",
+    "url": "http://controller-test"
+  },
+  {
+    "id": 5,
+    "name": "Controller-Test-1",
+    "url": "http://controller-test-1",
+    "channels":
+    { 
+      "channel1": true,
+      "channel2": false,
+      "channel3": true
+    }
+  }
+]
