@@ -1,8 +1,8 @@
-interface controller {
+interface PowerController {
   id: number;
   name: string;
   url: string;
-  channels: { [key: string]: boolean };
+  channels: { [name: string]: { state: boolean; channelNo: number } };
 }
 
-export default controller;
+export default PowerController;
