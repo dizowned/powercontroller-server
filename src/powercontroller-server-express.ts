@@ -23,12 +23,12 @@ app.post('/updatechannelname/:id/:channelName/:newName', (req: Request, res: Res
   if (!(channelName in controller.channels)) {
     return res.status(404).json({ error: "Channel not found" });
   }
-
   // Update channel name
-  const channelState = controller.channels[channelName];
-  const channelNo = channelState.channelNo;
-  delete controller.channels[channelName];
-  controller.channels[newName] = { state: channelState.state, channelNo: channelNo };
+  const oldChannel = controller.channels.find(c => c.name === channelName);
+  controller.channels.push({ name: newName, state: oldChannel!.state, channelNo: oldChannel!.channelNo });
+  controller.channels = controller.channels.filter(c => c.name !== channelName);
+  // Save to file
+  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
   res.json(controller);
 });
 
