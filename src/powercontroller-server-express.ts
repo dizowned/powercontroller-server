@@ -10,6 +10,24 @@ const controllers: PowerController[] = controllerlist as unknown as PowerControl
 
 app.use(express.json());
 
+app.post('/deletechannel/:controllerid/:channelName', (req: Request, res: Response) => {
+  const controllerid = parseInt(req.params.controllerid, 10);
+  const channelName = req.params.channelName;
+  const controller = controllers.find(c => c.id === controllerid);  
+  if (!controller) {
+    return res.status(404).json({ error: "Controller not found" });
+  }
+
+  if (!(channelName in controller.channels)) {
+    return res.status(404).json({ error: "Channel not found" });
+  }
+  // Delete channel
+  controller.channels = controller.channels.filter(c => c.name !== channelName);
+  // Save to file
+  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
+  res.json(controller);
+});
+
 app.post('/updatechannelname/:id/:channelName/:newName', (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   const channelName = req.params.channelName;
@@ -56,7 +74,7 @@ app.get('/controller/:id', (req: Request, res: Response) => {
   res.json(controller);
 });
 
-app.post('/delete/:id', (req: Request, res: Response) => {
+app.post('/deletecontroller/:id', (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   const index = controllers.findIndex(c => c.id === id);
   if (index === -1) {
