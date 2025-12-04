@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express';
 import fs from 'fs';
-import controller from './types/controller';
 import controllerlist from '../conf/controller-list.json';
 import PowerController from './types/controller';
 
@@ -47,7 +46,7 @@ app.post('/addchannel', (req: Request, res: Response) => {
   if (!channels || typeof channels !== 'object' || Object.keys(channels).length === 0) {
     return res.status(400).json({ error: "Channels must be a non-empty list of channels and names" });
   }
-  const newController: controller = { id: controllers.length + 1, name: name, url: url, channels: channels };
+  const newController: PowerController = { id: controllers.length + 1, name: name, url: url, channels: channels };
   controllers.push(newController);
   fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
   res.status(201).json(newController);
