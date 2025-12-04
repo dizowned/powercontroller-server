@@ -14,11 +14,11 @@ const controllers: PowerController[] = (controllerlist as unknown as any[]).map(
 })) as PowerController[];
 
 const persistControllers = (controllersToSave: PowerController[]) => {
-  const out = controllersToSave.map(c => ({
-    id: c.id,
-    name: c.name,
-    url: c.url,
-    channels: c.channels.reduce((acc, ch) => {
+  const out = controllersToSave.map(controller => ({
+    id: controller.id,
+    name: controller.name,
+    url: controller.url,
+    channels: controller.channels.reduce((acc, ch) => {
       acc[ch.name] = { state: ch.state, channelNo: ch.channelNo };
       return acc;
     }, {} as Record<string, { state: boolean; channelNo: number }>)
