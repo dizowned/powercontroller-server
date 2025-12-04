@@ -6,25 +6,7 @@ import PowerController from './types/controller';
 
 const app = express();
 const PORT = 3000;
-const controllers: PowerController[] = (controllerlist as unknown as any[]).map(c => ({
-  ...c,
-  channels: Array.isArray(c.channels)
-    ? c.channels
-    : Object.entries(c.channels || {}).map(([name, val]: [string, any]) => ({ name, state: val.state, channelNo: val.channelNo }))
-})) as PowerController[];
-
-const persistControllers = (controllersToSave: PowerController[]) => {
-  const out = controllersToSave.map(controller => ({
-    id: controller.id,
-    name: controller.name,
-    url: controller.url,
-    channels: controller.channels.reduce((acc, ch) => {
-      acc[ch.name] = { state: ch.state, channelNo: ch.channelNo };
-      return acc;
-    }, {} as Record<string, { state: boolean; channelNo: number }>)
-  }));
-  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(out, null, 2));
-};
+const controllers: PowerController[] = controllerlist as unknown as PowerController[];
 
 app.use(express.json());
 
@@ -65,9 +47,9 @@ app.post('/addchannel', (req: Request, res: Response) => {
   if (!channels || typeof channels !== 'object' || Object.keys(channels).length === 0) {
     return res.status(400).json({ error: "Channels must be a non-empty list of channels and names" });
   }
-  const newController: controller = { id: controllers.length + 1, name: name, url: url, channels: Array.isArray(channels) ? channels : Object.entries(channels).map(([name, val]: [string, any]) => ({ name, state: val.state, channelNo: val.channelNo })) };
+  const newController: controller = { id: controllers.length + 1, name: name, url: url, channels: channels };
   controllers.push(newController);
-  persistControllers(controllers);
+  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
   res.status(201).json(newController);
 });
 
@@ -79,14 +61,13 @@ app.post('/deletechannel/:controllerid/:channelName', (req: Request, res: Respon
     return res.status(404).json({ error: "Controller not found" });
   }
 
-  const channel = controller.channels.find(c => c.name === channelName);
-  if (!channel) {
+  if (!(channelName in controller.channels)) {
     return res.status(404).json({ error: "Channel not found" });
   }
   // Delete channel
   controller.channels = controller.channels.filter(c => c.name !== channelName);
   // Save to file
-  persistControllers(controllers);
+  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
   res.json(controller);
 });
 
@@ -100,15 +81,15 @@ app.post('/updatechannelname/:id/:channelName/:newName', (req: Request, res: Res
     return res.status(404).json({ error: "Controller not found" });
   }
 
-  const oldChannel = controller.channels.find(c => c.name === channelName);
-  if (!oldChannel) {
+  if (!(channelName in controller.channels)) {
     return res.status(404).json({ error: "Channel not found" });
   }
   // Update channel name
-  controller.channels.push({ name: newName, state: oldChannel.state, channelNo: oldChannel.channelNo });
+  const oldChannel = controller.channels.find(c => c.name === channelName);
+  controller.channels.push({ name: newName, state: oldChannel!.state, channelNo: oldChannel!.channelNo });
   controller.channels = controller.channels.filter(c => c.name !== channelName);
   // Save to file
-  persistControllers(controllers);
+  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
   res.json(controller);
 });
 
@@ -143,7 +124,7 @@ app.post('/deletecontroller/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: "Controller not found" });
   }
   controllers.splice(index, 1);
-  persistControllers(controllers);
+  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
   res.json({ message: "Controller deleted successfully" });
 });
 

@@ -4,54 +4,84 @@
     "name": "Controller-1",
     "url": "http://controller-1",
     "channels":
-    { 
-      "channel1": { "state": true, "channelNo": 1 },
-      "channel2": { "state": false, "channelNo": 2 },
-      "channel3": { "state": true, "channelNo": 3 }
-    }
+    [
+      {
+      "name": "channel1", "state": true, "channelNo": 1
+      },
+      {
+      "name": "channel2", "state": false, "channelNo": 2
+      },
+      {
+      "name": "channel3", "state": true, "channelNo": 3
+      }
+    ]
   },
   {
     "id": 2,
     "name": "Controller-2",
     "url": "http://controller-2"
     ,"channels":
-    { 
-      "channel1": { "state": true, "channelNo": 1 },
-      "channel2": { "state": false, "channelNo": 2 },
-      "channel3": { "state": true, "channelNo": 3 }
-    }
+      [
+      {
+      "name": "channel1", "state": true, "channelNo": 1
+      },
+      {
+      "name": "channel2", "state": false, "channelNo": 2
+      },
+      {
+      "name": "channel3", "state": true, "channelNo": 3
+      }
+    ]
   },
   {
     "id": 3,
     "name": "Controller-3",
     "url": "http://controller-3",
     "channels":
-    { 
-      "channel1": { "state": true, "channelNo": 1 },
-      "channel2": { "state": false, "channelNo": 2 },
-      "channel3": { "state": true, "channelNo": 3 }
-    }
+     [
+      {
+      "name": "channel1", "state": true, "channelNo": 1
+      },
+      {
+      "name": "channel2", "state": false, "channelNo": 2
+      },
+      {
+      "name": "channel3", "state": true, "channelNo": 3
+      }
+    ]
   },
   {
     "id": 4,
     "name": "Controller-Test-4",
     "url": "http://controller-test-4",
     "channels":
-    { 
-      "channel1": { "state": true, "channelNo": 1 },
-      "channel2": { "state": true, "channelNo": 2 },
-      "channel3": { "state": true, "channelNo": 3 }
-    }
+   [
+      {
+      "name": "channel1", "state": true, "channelNo": 1
+      },
+      {
+      "name": "channel2", "state": false, "channelNo": 2
+      },
+      {
+      "name": "channel3", "state": true, "channelNo": 3
+      }
+    ]
   },
   {
     "id": 5,
     "name": "Controller-Test-5",
     "url": "http://controller-test-5",
     "channels":
-    { 
-      "channel1": { "state": false, "channelNo": 1 },
-      "channel2": { "state": false, "channelNo": 2 },
-      "channel3": { "state": false, "channelNo": 3 }
-    }
+     [
+      {
+      "name": "channel1", "state": true, "channelNo": 1
+      },
+      {
+      "name": "channel2", "state": false, "channelNo": 2
+      },
+      {
+      "name": "channel3", "state": true, "channelNo": 3
+      }
+    ]
   }
 ]
