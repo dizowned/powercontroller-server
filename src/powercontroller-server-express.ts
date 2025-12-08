@@ -1,11 +1,11 @@
 import express, { Request, Response } from 'express';
 import fs from 'fs';
-import controllerlist from '../conf/controller-list.json';
+import controllerlist from '../data/controller-list.json';
 import PowerController from './types/controller';
 
 const app = express();
 const PORT = 3000;
-const controllers: PowerController[] = controllerlist as unknown as PowerController[];
+const controllers: PowerController[] = controllerlist as PowerController[];
 
 app.use(express.json());
 
@@ -48,7 +48,7 @@ app.post('/addchannel', (req: Request, res: Response) => {
   }
   const newController: PowerController = { id: controllers.length + 1, name: name, url: url, channels: channels };
   controllers.push(newController);
-  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
+  fs.writeFileSync('../data/controller-list.json', JSON.stringify(controllers, null, 2));
   res.status(201).json(newController);
 });
 
@@ -66,7 +66,7 @@ app.post('/deletechannel/:controllerid/:channelName', (req: Request, res: Respon
   // Delete channel
   controller.channels = controller.channels.filter(c => c.name !== channelName);
   // Save to file
-  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
+  fs.writeFileSync('../data/controller-list.json', JSON.stringify(controllers, null, 2));
   res.json(controller);
 });
 
@@ -118,12 +118,13 @@ app.get('/controller/:id', (req: Request, res: Response) => {
 
 app.post('/deletecontroller/:id', (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
+  console.log(`Deleting controller with id: ${id}`);
   const index = controllers.findIndex(c => c.id === id);
   if (index === -1) {
-    return res.status(404).json({ error: "Controller not found" });
+    return res.status(404).json({ error: "Controller not found", id: id });
   }
   controllers.splice(index, 1);
-  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
+  fs.writeFileSync('../data/controller-list.json', JSON.stringify(controllers, null, 2));
   res.json({ message: "Controller deleted successfully" });
 });
 
