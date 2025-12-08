@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import fs from 'fs';
+import cors from 'cors';
 import controllerlist from '../data/controller-list.json';
 import PowerController from './types/controller';
 
@@ -8,7 +9,11 @@ const PORT = 3000;
 const controllers: PowerController[] = controllerlist as PowerController[];
 
 app.use(express.json());
-
+app.use(cors({
+  origin: ['http://localhost:4200'],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true, // Allow cookies and authentication headers
+}));
 
 app.get('/channels/:controllerid', (req: Request, res: Response) => {
   const controllerid = parseInt(req.params.controllerid, 10);

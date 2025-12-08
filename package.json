@@ -22,5 +22,11 @@
     "test": "exec ts-node src/powercontroller-server-express.ts",
     "start": "exec ts-node src/powercontroller-server-express.ts",
     "build": "tsc"
+  },
+  "dependencies": {
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19"
   }
 }
