@@ -1,7 +1,7 @@
 export interface channel{
     name: string; 
     state: boolean; 
-    channelNo: number 
+     number: number 
 }
 export interface PowerController {
   id: number;

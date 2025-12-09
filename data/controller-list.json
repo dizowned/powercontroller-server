@@ -1,4 +1,4 @@
-[
+  [
   {
     "id":1,
     "name": "Controller-1",
@@ -6,13 +6,13 @@
     "channels":
     [
       {
-      "name": "channel1", "state": true, "channelNo": 1
+      "name": "channel1", "state": true, "number": 1
       },
       {
-      "name": "channel2", "state": false, "channelNo": 2
+      "name": "channel2", "state": false, "number": 2
       },
       {
-      "name": "channel3", "state": true, "channelNo": 3
+      "name": "channel3", "state": true, "number": 3
       }
     ]
   },
@@ -23,13 +23,13 @@
     ,"channels":
       [
       {
-      "name": "channel1", "state": true, "channelNo": 1
+      "name": "channel1", "state": true, "number": 1
       },
       {
-      "name": "channel2", "state": false, "channelNo": 2
+      "name": "channel2", "state": false, "number": 2
       },
       {
-      "name": "channel3", "state": true, "channelNo": 3
+      "name": "channel3", "state": true, "number": 3
       }
     ]
   },
@@ -40,13 +40,13 @@
     "channels":
      [
       {
-      "name": "channel1", "state": true, "channelNo": 1
+      "name": "channel1", "state": true, "number": 1
       },
       {
-      "name": "channel2", "state": false, "channelNo": 2
+      "name": "channel2", "state": false, "number": 2
       },
       {
-      "name": "channel3", "state": true, "channelNo": 3
+      "name": "channel3", "state": true, "number": 3
       }
     ]
   },
@@ -57,13 +57,13 @@
     "channels":
    [
       {
-      "name": "channel1", "state": true, "channelNo": 1
+      "name": "channel1", "state": true, "number": 1
       },
       {
-      "name": "channel2", "state": false, "channelNo": 2
+      "name": "channel2", "state": false, "number": 2
       },
       {
-      "name": "channel3", "state": true, "channelNo": 3
+      "name": "channel3", "state": true, "number": 3
       }
     ]
   },
@@ -74,13 +74,13 @@
     "channels":
      [
       {
-      "name": "channel1", "state": true, "channelNo": 1
+      "name": "channel1", "state": true, "number": 1
       },
       {
-      "name": "channel2", "state": false, "channelNo": 2
+      "name": "channel2", "state": false, "number": 2
       },
       {
-      "name": "channel3", "state": true, "channelNo": 3
+      "name": "channel3", "state": true, "number": 3
       }
     ]
   }

@@ -90,7 +90,7 @@ app.post('/updatechannelname/:id/:channelName/:newName', (req: Request, res: Res
   }
   // Update channel name
   const oldChannel = controller.channels.find(c => c.name === channelName);
-  controller.channels.push({ name: newName, state: oldChannel!.state, channelNo: oldChannel!.channelNo });
+  controller.channels.push({ name: newName, state: oldChannel!.state, number: oldChannel!.number });
   controller.channels = controller.channels.filter(c => c.name !== channelName);
   // Save to file
   fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
@@ -99,7 +99,8 @@ app.post('/updatechannelname/:id/:channelName/:newName', (req: Request, res: Res
 
 // Endpoint: GET /channels
 app.get('/controllers', (req: Request, res: Response) => {
-  res.json({ controllers });
+  const controllers: PowerController[] = controllerlist as PowerController[];
+  res.json(controllers);
 });
 
 // Endpoint: GET /name
