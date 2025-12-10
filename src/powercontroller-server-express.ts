@@ -3,6 +3,7 @@ import fs from 'fs';
 import cors from 'cors';
 import controllerlist from '../data/controller-list.json';
 import PowerController from './types/controller';
+import { exec } from 'child_process';
 
 const app = express();
 const PORT = 3000;
@@ -37,6 +38,30 @@ app.get('/channelbyname/:controllerid/:channelName', (req: Request, res: Respons
   }
   res.json(channel);
 }); 
+
+app.post('/setchannelstate/:controllerid/:channelName/:state', (req: Request, res: Response) => {
+  
+  const controllerid = parseInt(req.params.controllerid, 10);
+  const channelName = req.params.channelName; 
+  const state = req.params.state.toLowerCase() === 'true';
+  const controller = controllers.find(c => c.id === controllerid);
+  if (!controller) {
+    return res.status(404).json({ error: "Controller not found" });
+  }
+  const channel = controller.channels.find(c => c.name === channelName);
+  if (!channel) {
+    return res.status(404).json({ error: "Channel not found" });
+  }
+  channel.state = state;
+  exec(`./bin/setchannel.py ${controllerid} ${channelName} ${state}`, (err, stdout, stderr) => {
+    if (err) {
+      return res.status(500).send(`Error: ${stderr}`);
+    }
+  });
+  // Save to file
+  fs.writeFileSync('../data/controller-list.json', JSON.stringify(controllers, null, 2));
+  res.json(channel);
+});
 
 // Optional: POST /channels (to add new channels)
 app.post('/addchannel', (req: Request, res: Response) => {
