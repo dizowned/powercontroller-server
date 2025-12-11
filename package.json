@@ -25,7 +25,8 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "exec": "^0.2.1"
+    "exec": "^0.2.1",
+    "helmet": "^8.1.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19"

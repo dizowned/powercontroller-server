@@ -8,13 +8,15 @@ def main(self=None):
         print("Usage: setchannel.py <controllerid> <channelname> <state>")
         sys.exit(1)
 
-    controllerid = sys.argv[1]
+    controllerid = int(sys.argv[1])
     channelname = sys.argv[2]
     state = sys.argv[3].lower() == 'true'
 
     # Load controller list
     with open('../data/controller-list.json', 'r') as f:
         controllers = json.load(f)
+
+    print(f"Loaded {(controllers)} controllers")
 
     # Find controller
     controller = next((c for c in controllers if c['id'] == controllerid), None)

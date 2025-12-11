@@ -1,86 +1,111 @@
-  [
+[
   {
-    "id":1,
+    "id": 1,
     "name": "Controller-1",
     "url": "http://controller-1",
-    "channels":
-    [
+    "channels": [
       {
-      "name": "channel1", "state": true, "number": 1
+        "name": "channel1",
+        "state": true,
+        "number": 1
       },
       {
-      "name": "channel2", "state": false, "number": 2
+        "name": "channel2",
+        "state": false,
+        "number": 2
       },
       {
-      "name": "channel3", "state": true, "number": 3
+        "name": "channel3",
+        "state": true,
+        "number": 3
       }
     ]
   },
   {
-    "id":2,
+    "id": 2,
     "name": "Controller-2",
-    "url": "http://controller-2"
-    ,"channels":
-      [
+    "url": "http://controller-2",
+    "channels": [
       {
-      "name": "channel1", "state": true, "number": 1
+        "name": "channel1",
+        "state": true,
+        "number": 1
       },
       {
-      "name": "channel2", "state": false, "number": 2
+        "name": "channel2",
+        "state": false,
+        "number": 2
       },
       {
-      "name": "channel3", "state": true, "number": 3
+        "name": "channel3",
+        "state": true,
+        "number": 3
       }
     ]
   },
   {
-    "id":3,
+    "id": 3,
     "name": "Controller-3",
     "url": "http://controller-3",
-    "channels":
-     [
+    "channels": [
       {
-      "name": "channel1", "state": true, "number": 1
+        "name": "channel1",
+        "state": true,
+        "number": 1
       },
       {
-      "name": "channel2", "state": false, "number": 2
+        "name": "channel2",
+        "state": false,
+        "number": 2
       },
       {
-      "name": "channel3", "state": true, "number": 3
+        "name": "channel3",
+        "state": true,
+        "number": 3
       }
     ]
   },
   {
-    "id":4,
+    "id": 4,
     "name": "Controller-Test-4",
     "url": "http://controller-test-4",
-    "channels":
-   [
+    "channels": [
       {
-      "name": "channel1", "state": true, "number": 1
+        "name": "channel1",
+        "state": true,
+        "number": 1
       },
       {
-      "name": "channel2", "state": false, "number": 2
+        "name": "channel2",
+        "state": false,
+        "number": 2
       },
       {
-      "name": "channel3", "state": true, "number": 3
+        "name": "channel3",
+        "state": true,
+        "number": 3
       }
     ]
   },
   {
-    "id":5,
+    "id": 5,
     "name": "Controller-Test-5",
     "url": "http://controller-test-5",
-    "channels":
-     [
+    "channels": [
       {
-      "name": "channel1", "state": true, "number": 1
+        "name": "channel1",
+        "state": true,
+        "number": 1
       },
       {
-      "name": "channel2", "state": false, "number": 2
+        "name": "channel2",
+        "state": false,
+        "number": 2
       },
       {
-      "name": "channel3", "state": true, "number": 3
+        "name": "channel3",
+        "state": true,
+        "number": 3
       }
     ]
   }

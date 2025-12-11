@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import helmet from 'helmet';
 import fs from 'fs';
 import cors from 'cors';
 import controllerlist from '../data/controller-list.json';
@@ -11,9 +12,21 @@ const controllers: PowerController[] = controllerlist as PowerController[];
 
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:4200'],
+  origin: ['http://localhost:4200', 'http://localhost:3000'],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true, // Allow cookies and authentication headers
+}));
+
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    // Allow all connections to be made to the same origin (your app's domain)
+    // and to your specific API endpoint.
+    connectSrc: ["'self'", "https://localhost", "*"],
+    // You'd also set other directives like script-src, img-src, etc.
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+    imgSrc: ["'self'", "data:", "https://images.example.com"]
+  }
 }));
 
 app.get('/channels/:controllerid', (req: Request, res: Response) => {
