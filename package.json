@@ -24,7 +24,8 @@
     "build": "tsc"
   },
   "dependencies": {
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "exec": "^0.2.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19"
