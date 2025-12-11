@@ -10,24 +10,23 @@ const app = express();
 const PORT = 3000;
 const controllers: PowerController[] = controllerlist as PowerController[];
 
-app.use(express.json());
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    connectSrc: ["'self'", "http://localhost:3000", "*"],
+    defaultSrc: ["'self'", "*"],
+    scriptSrc: ["'self'", "http://localhost:3000", "*"],
+    imgSrc: ["'self'", "data:", "http://localhost:3000", "*"],
+    upgradeInsecureRequests: null
+  }
+}));
+
 app.use(cors({
   origin: ['http://localhost:4200', 'http://localhost:3000'],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true, // Allow cookies and authentication headers
 }));
 
-app.use(helmet.contentSecurityPolicy({
-  directives: {
-    // Allow all connections to be made to the same origin (your app's domain)
-    // and to your specific API endpoint.
-    connectSrc: ["'self'", "https://localhost", "*"],
-    // You'd also set other directives like script-src, img-src, etc.
-    defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-    imgSrc: ["'self'", "data:", "https://images.example.com"]
-  }
-}));
+app.use(express.json());
 
 app.get('/channels/:controllerid', (req: Request, res: Response) => {
   const controllerid = parseInt(req.params.controllerid, 10);
