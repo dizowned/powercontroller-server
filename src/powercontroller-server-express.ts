@@ -13,19 +13,25 @@ const controllers: PowerController[] = controllerlist as PowerController[];
 
 app.use(helmet.contentSecurityPolicy({
   directives: {
-    connectSrc: ["'self'", "http://localhost:3000","'unsafe-inline'"],
+    connectSrc: ["'self'", "'http://localhost:3000'","'http://localhost:4200'","'unsafe-inline'"],
     defaultSrc: ["'self'", "'http://localhost:3000/'", "'unsafe-inline'"],
-    scriptSrc: ["'self'", "http://localhost:3000", "'unsafe-inline'"],
-    imgSrc: ["'self'", "data:", "http://localhost:3000", "'unsafe-inline'"],
+    scriptSrc: ["'self'", "'http://localhost:3000'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:", "'http://localhost:3000'", "'unsafe-inline'"],
     "upgrade-insecure-requests": null,
   }
 }));
 
 app.use(cors({
-  origin: ["'self'", "'http://localhost:4200'", "'http://localhost:3000'"],
+  origin: ['http://localhost:4200', 'http://localhost:3000'],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true
 }));
+
+app.use((req: Request, res: Response, next: express.NextFunction) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
 
 app.use(express.json());
 
