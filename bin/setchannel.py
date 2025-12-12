@@ -13,7 +13,7 @@ def main(self=None):
     state = sys.argv[3].lower() == 'true'
 
     # Load controller list
-    with open('../data/controller-list.json', 'r') as f:
+    with open('./config/controller-list.json', 'r') as f:
         controllers = json.load(f)
 
     print(f"Loaded {(controllers)} controllers")
@@ -34,7 +34,7 @@ def main(self=None):
     channel['state'] = state
 
     # Save updated controller list
-    with open('../data/controller-list.json', 'w') as f:
+    with open('./config/controller-list.json', 'w') as f:
         json.dump(controllers, f, indent=2)
 
     print(f"Set channel {channelname} of controller {controllerid} to {'ON' if state else 'OFF'}")

@@ -1,10 +1,11 @@
 import express, { Request, Response } from 'express';
-import helmet from 'helmet';
-import fs from 'fs';
-import cors from 'cors';
-import controllerlist from '../data/controller-list.json';
-import PowerController from './types/controller';
 import { exec } from 'child_process';
+import helmet, { strictTransportSecurity } from 'helmet';
+import cors from 'cors';
+import fs from 'fs';
+import controllerlist from '../config/controller-list.json';
+import PowerController from './types/controller';
+
 
 const app = express();
 const PORT = 3000;
@@ -12,18 +13,18 @@ const controllers: PowerController[] = controllerlist as PowerController[];
 
 app.use(helmet.contentSecurityPolicy({
   directives: {
-    connectSrc: ["'self'", "http://localhost:3000", "*"],
-    defaultSrc: ["'self'", "*"],
-    scriptSrc: ["'self'", "http://localhost:3000", "*"],
-    imgSrc: ["'self'", "data:", "http://localhost:3000", "*"],
-    upgradeInsecureRequests: null
+    connectSrc: ["'self'", "http://localhost:3000","'unsafe-inline'"],
+    defaultSrc: ["'self'", "'http://localhost:3000/'", "'unsafe-inline'"],
+    scriptSrc: ["'self'", "http://localhost:3000", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:", "http://localhost:3000", "'unsafe-inline'"],
+    "upgrade-insecure-requests": null,
   }
 }));
 
 app.use(cors({
-  origin: ['http://localhost:4200', 'http://localhost:3000'],
+  origin: ["'self'", "'http://localhost:4200'", "'http://localhost:3000'"],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true, // Allow cookies and authentication headers
+  credentials: true
 }));
 
 app.use(express.json());
@@ -67,11 +68,13 @@ app.post('/setchannelstate/:controllerid/:channelName/:state', (req: Request, re
   channel.state = state;
   exec(`./bin/setchannel.py ${controllerid} ${channelName} ${state}`, (err, stdout, stderr) => {
     if (err) {
-      return res.status(500).send(`Error: ${stderr}`);
+      console.error(`Error executing script: ${err}`);
+      return res.status(500);
+      //return res.status(500).send(`Error: ${stderr}`);
     }
   });
   // Save to file
-  fs.writeFileSync('../data/controller-list.json', JSON.stringify(controllers, null, 2));
+  //fs.writeFileSync('../config/controller-list.json', JSON.stringify(controllers, null, 2));
   res.json(channel);
 });
 
@@ -136,7 +139,6 @@ app.post('/updatechannelname/:id/:channelName/:newName', (req: Request, res: Res
 
 // Endpoint: GET /channels
 app.get('/controllers', (req: Request, res: Response) => {
-  const controllers: PowerController[] = controllerlist as PowerController[];
   res.json(controllers);
 });
 
