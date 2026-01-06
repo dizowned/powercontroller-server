@@ -5,11 +5,11 @@ import sys,json,os
 def main(self=None):
 
     if len(sys.argv) != 4:
-        print("Usage: setchannel.py <controllerid> <channelname> <state>")
+        print("Usage: setchannel.py <controllerid> <channelnumber> <state>")
         sys.exit(1)
 
     controllerid = int(sys.argv[1])
-    channelname = sys.argv[2]
+    channelnumber = int(sys.argv[2])
     state = sys.argv[3].lower() == 'true'
 
     # Load controller list
@@ -25,9 +25,9 @@ def main(self=None):
         sys.exit(1)
 
     # Find channel
-    channel = next((ch for ch in controller['channels'] if ch['name'] == channelname), None)
+    channel = next((ch for ch in controller['channels'] if ch['number'] == channelnumber), None)
     if not channel:
-        print(f"Channel {channelname} not found in controller {controllerid}")
+        print(f"Channel {channelnumber} not found in controller {controllerid}")
         sys.exit(1)
 
     # Set channel state
@@ -37,7 +37,7 @@ def main(self=None):
     with open('./config/controller-list.json', 'w') as f:
         json.dump(controllers, f, indent=2)
 
-    print(f"Set channel {channelname} of controller {controllerid} to {'ON' if state else 'OFF'}")
+    print(f"Set channel number: {channelnumber} of controller {controllerid} to {'ON' if state else 'OFF'}")
     
     
 if __name__ == "__main__":

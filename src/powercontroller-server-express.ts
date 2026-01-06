@@ -11,20 +11,24 @@ const app = express();
 const PORT = 3000;
 const controllers: PowerController[] = controllerlist as PowerController[];
 
-app.use(helmet.contentSecurityPolicy({
+`app.use(helmet.contentSecurityPolicy({
   directives: {
-    connectSrc: ["'self'", "'http://localhost:3000'","'http://localhost:4200'","'unsafe-inline'"],
+    connectSrc: ["'self'","'http://localhost:3000'","'http://localhost:4200'","'unsafe-inline'"],
     defaultSrc: ["'self'", "'http://localhost:3000/'", "'unsafe-inline'"],
     scriptSrc: ["'self'", "'http://localhost:3000'", "'unsafe-inline'"],
     imgSrc: ["'self'", "data:", "'http://localhost:3000'", "'unsafe-inline'"],
     "upgrade-insecure-requests": null,
   }
 }));
+`
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 
 app.use(cors({
   origin: ['http://localhost:4200', 'http://localhost:3000'],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true
+  credentials: false
 }));
 
 app.use((req: Request, res: Response, next: express.NextFunction) => {
@@ -58,21 +62,22 @@ app.get('/channelbyname/:controllerid/:channelName', (req: Request, res: Respons
   res.json(channel);
 }); 
 
-app.post('/setchannelstate/:controllerid/:channelName/:state', (req: Request, res: Response) => {
+app.post('/setchannelstate/:controllerid/:channelNumber/:state', (req: Request, res: Response) => {
   
   const controllerid = parseInt(req.params.controllerid, 10);
-  const channelName = req.params.channelName; 
+  const channelNumber = parseInt(req.params.channelNumber, 10); 
   const state = req.params.state.toLowerCase() === 'true';
   const controller = controllers.find(c => c.id === controllerid);
+  console.log(`Setting controller ${controllerid} channel ${channelNumber} to state ${state}`);
   if (!controller) {
     return res.status(404).json({ error: "Controller not found" });
   }
-  const channel = controller.channels.find(c => c.name === channelName);
+  const channel = controller.channels.find(c => c.number === channelNumber);
   if (!channel) {
-    return res.status(404).json({ error: "Channel not found" });
+    return res.status(404).json({ error: `Channel not found: ${channelNumber}` });
   }
   channel.state = state;
-  exec(`./bin/setchannel.py ${controllerid} ${channelName} ${state}`, (err, stdout, stderr) => {
+  exec(`./bin/setchannel.py ${controllerid} ${channelNumber} ${state}`, (err, stdout, stderr) => {
     if (err) {
       console.error(`Error executing script: ${err}`);
       return res.status(500);
@@ -181,5 +186,7 @@ app.post('/deletecontroller/:id', (req: Request, res: Response) => {
 
 // Start server
 app.listen(PORT, () => {
+  console.log(`Application environment: ${app.get('env')}`);
+  console.log(`Application variables: ${process.env}`);
   console.log(`Server running at http://localhost:${PORT}`);
 });

@@ -113,6 +113,16 @@ app.use(cors({
 
 Ensure `data/controller-list.json` exists and contains valid JSON before starting the server.
 
+#### Testing
+- **Test with a POST:** 
+                        Example:
+                            fetch('http://localhost:3000/setchannelstate/1/2/true', {
+                              method: 'POST'
+                            })
+                            .then(response => response.json())
+                            .then(data => console.log('Success:', data))
+                            .catch(error => console.error('Error:', error));
+
 ## Project Structure
 
 ```
