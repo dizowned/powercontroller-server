@@ -81,12 +81,10 @@ app.post('/setchannelstate/:controllerid/:channelNumber/:state', (req: Request, 
     if (err) {
       console.error(`Error executing script: ${err}`);
       return res.status(500);
-      //return res.status(500).send(`Error: ${stderr}`);
     }
+    console.log(`Script output: ${stdout}`);
+    res.status(200);
   });
-  // Save to file
-  //fs.writeFileSync('../config/controller-list.json', JSON.stringify(controllers, null, 2));
-  res.json(channel);
 });
 
 // Optional: POST /channels (to add new channels)

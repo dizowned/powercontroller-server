@@ -38,7 +38,7 @@
       },
       {
         "name": "channel3",
-        "state": true,
+        "state": false,
         "number": 3
       }
     ]
@@ -50,7 +50,7 @@
     "channels": [
       {
         "name": "channel1",
-        "state": true,
+        "state": false,
         "number": 1
       },
       {
