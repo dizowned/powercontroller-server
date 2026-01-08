@@ -80,10 +80,10 @@ app.post('/setchannelstate/:controllerid/:channelNumber/:state', (req: Request, 
   exec(`./bin/setchannel.py ${controllerid} ${channelNumber} ${state}`, (err, stdout, stderr) => {
     if (err) {
       console.error(`Error executing script: ${err}`);
-      return res.status(500);
+      return res.status(500).json({ error: "Failed to set channel state" });
     }
     console.log(`Script output: ${stdout}`);
-    res.status(200);
+    res.status(200).json({ message: "Channel updated successfully" });
   });
 });
 
