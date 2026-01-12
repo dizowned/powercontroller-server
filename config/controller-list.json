@@ -6,7 +6,7 @@
     "channels": [
       {
         "name": "channel1",
-        "state": false,
+        "state": true,
         "number": 1
       },
       {
@@ -50,7 +50,7 @@
     "channels": [
       {
         "name": "channel1",
-        "state": true,
+        "state": false,
         "number": 1
       },
       {

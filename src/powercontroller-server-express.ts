@@ -5,6 +5,7 @@ import cors from 'cors';
 import fs from 'fs';
 import controllerlist from '../config/controller-list.json';
 import PowerController from './types/controller';
+import { setDefaultCACertificates } from 'tls';
 
 
 const app = express();
@@ -70,20 +71,21 @@ app.post('/setchannelstate/:controllerid/:channelNumber/:state', (req: Request, 
   const controller = controllers.find(c => c.id === controllerid);
   console.log(`Setting controller ${controllerid} channel ${channelNumber} to state ${state}`);
   if (!controller) {
-    return res.status(404).json({ error: "Controller not found" });
+    console.log(`Controller not found: ${controllerid}`);
+    return res.status(404).json({ error: "Controller not found" , success: false});
   }
   const channel = controller.channels.find(c => c.number === channelNumber);
   if (!channel) {
-    return res.status(404).json({ error: `Channel not found: ${channelNumber}` });
+    return res.status(404).json({ error: `Channel not found: ${channelNumber}`, success: false });
   }
   channel.state = state;
   exec(`./bin/setchannel.py ${controllerid} ${channelNumber} ${state}`, (err, stdout, stderr) => {
     if (err) {
       console.error(`Error executing script: ${err}`);
-      return res.status(500).json({ error: "Failed to set channel state" });
+      return res.status(500).json({ error: "Failed to set channel state", success: false });
     }
     console.log(`Script output: ${stdout}`);
-    res.status(200).json({ message: "Channel updated successfully" });
+    res.status(200).json({ message: "Channel updated successfully", success: true });
   });
 });
 
