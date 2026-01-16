@@ -28,7 +28,7 @@
     "channels": [
       {
         "name": "channel1",
-        "state": true,
+        "state": false,
         "number": 1
       },
       {
@@ -72,7 +72,7 @@
     "channels": [
       {
         "name": "channel1",
-        "state": true,
+        "state": false,
         "number": 1
       },
       {
@@ -82,7 +82,7 @@
       },
       {
         "name": "channel3",
-        "state": true,
+        "state": false,
         "number": 3
       }
     ]

@@ -1,18 +1,18 @@
-import express, { Request, Response } from 'express';
-import { exec } from 'child_process';
-import helmet, { strictTransportSecurity } from 'helmet';
-import cors from 'cors';
-import fs from 'fs';
-import controllerlist from '../config/controller-list.json';
-import PowerController from './types/controller';
-import { setDefaultCACertificates } from 'tls';
-
+import express, { Request, Response } from "express";
+import { exec } from "child_process";
+import helmet, { strictTransportSecurity } from "helmet";
+import cors from "cors";
+import fs from "fs";
+import controllerlist from "../config/controller-list.json";
+import PowerController from "./types/controller";
+import { setDefaultCACertificates } from "tls";
 
 const app = express();
 const PORT = 3000;
 const controllers: PowerController[] = controllerlist as PowerController[];
 
-`app.use(helmet.contentSecurityPolicy({
+/*
+app.use(helmet.contentSecurityPolicy({
   directives: {
     connectSrc: ["'self'","'http://localhost:3000'","'http://localhost:4200'","'unsafe-inline'"],
     defaultSrc: ["'self'", "'http://localhost:3000/'", "'unsafe-inline'"],
@@ -21,172 +21,241 @@ const controllers: PowerController[] = controllerlist as PowerController[];
     "upgrade-insecure-requests": null,
   }
 }));
-`
-app.use(helmet({
-  contentSecurityPolicy: false,
-}));
+*/
 
-app.use(cors({
-  origin: ['http://localhost:4200', 'http://localhost:3000'],
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: false
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+);
+
+app.use(
+  cors({
+    origin: ["http://localhost:4200", "http://localhost:3000"],
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: false,
+  })
+);
 
 app.use((req: Request, res: Response, next: express.NextFunction) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
   next();
 });
 
 app.use(express.json());
 
-app.get('/channels/:controllerid', (req: Request, res: Response) => {
+app.get("/channels/:controllerid", (req: Request, res: Response) => {
   const controllerid = parseInt(req.params.controllerid, 10);
-  const controller = controllers.find(c => c.id === controllerid);
+  const controller = controllers.find((c) => c.id === controllerid);
   if (!controller) {
     return res.status(404).json({ error: "Controller not found" });
   }
   res.json(controller.channels);
 });
 
-app.get('/channelbyname/:controllerid/:channelName', (req: Request, res: Response) => {
-  const controllerid = parseInt(req.params.controllerid, 10);
-  const channelName = req.params.channelName;
-  const controller = controllers.find(c => c.id === controllerid);
-  if (!controller) {
-    return res.status(404).json({ error: "Controller not found" });
-  }
-  const channel = controller.channels.find(c => c.name === channelName);
-  if (!channel) {
-    return res.status(404).json({ error: "Channel not found" });
-  }
-  res.json(channel);
-}); 
-
-app.post('/setchannelstate/:controllerid/:channelNumber/:state', (req: Request, res: Response) => {
-  
-  const controllerid = parseInt(req.params.controllerid, 10);
-  const channelNumber = parseInt(req.params.channelNumber, 10); 
-  const state = req.params.state.toLowerCase() === 'true';
-  const controller = controllers.find(c => c.id === controllerid);
-  console.log(`Setting controller ${controllerid} channel ${channelNumber} to state ${state}`);
-  if (!controller) {
-    console.log(`Controller not found: ${controllerid}`);
-    return res.status(404).json({ error: "Controller not found" , success: false});
-  }
-  const channel = controller.channels.find(c => c.number === channelNumber);
-  if (!channel) {
-    return res.status(404).json({ error: `Channel not found: ${channelNumber}`, success: false });
-  }
-  channel.state = state;
-  exec(`./bin/setchannel.py ${controllerid} ${channelNumber} ${state}`, (err, stdout, stderr) => {
-    if (err) {
-      console.error(`Error executing script: ${err}`);
-      return res.status(500).json({ error: "Failed to set channel state", success: false });
+app.get(
+  "/channelbyname/:controllerid/:channelName",
+  (req: Request, res: Response) => {
+    const controllerid = parseInt(req.params.controllerid, 10);
+    const channelName = req.params.channelName;
+    const controller = controllers.find((c) => c.id === controllerid);
+    if (!controller) {
+      return res.status(404).json({ error: "Controller not found" });
     }
-    console.log(`Script output: ${stdout}`);
-    res.status(200).json({ message: "Channel updated successfully", success: true });
-  });
-});
+    const channel = controller.channels.find((c) => c.name === channelName);
+    if (!channel) {
+      return res.status(404).json({ error: "Channel not found" });
+    }
+    res.json(channel);
+  }
+);
+
+app.post(
+  "/setchannelstate/:controllerid/:channelNumber/:state",
+  (req: Request, res: Response) => {
+    const controllerid = parseInt(req.params.controllerid, 10);
+    const channelNumber = parseInt(req.params.channelNumber, 10);
+    const state = req.params.state.toLowerCase() === "true";
+    const controller = controllers.find((c) => c.id === controllerid);
+    console.log(
+      `Setting controller ${controllerid} channel ${channelNumber} to state ${state}`
+    );
+    if (!controller) {
+      console.log(`Controller not found: ${controllerid}`);
+      return res
+        .status(404)
+        .json({ error: "Controller not found", success: false });
+    }
+    const channel = controller.channels.find((c) => c.number === channelNumber);
+    if (!channel) {
+      return res
+        .status(404)
+        .json({ error: `Channel not found: ${channelNumber}`, success: false });
+    }
+    channel.state = state;
+    exec(
+      `./bin/setchannel.py ${controllerid} ${channelNumber} ${state}`,
+      (err, stdout, stderr) => {
+        if (err) {
+          console.error(`Error executing script: ${err}`);
+          return res
+            .status(500)
+            .json({ error: "Failed to set channel state", success: false });
+        }
+        console.log(`Script output: ${stdout}`);
+        res
+          .status(200)
+          .json({ message: "Channel updated successfully", success: true });
+      }
+    );
+  }
+);
 
 // Optional: POST /channels (to add new channels)
-app.post('/addchannel', (req: Request, res: Response) => {
+app.post("/addchannel", (req: Request, res: Response) => {
   const { name, url, channels } = req.body;
   if (!name || !url || !channels) {
-    return res.status(400).json({ error: "Controller Name, Url, Channel count are required" });
+    return res
+      .status(400)
+      .json({ error: "Controller Name, Url, Channel count are required" });
   }
-  if (controllerlist.some(c => c.name === name)) {
-    return res.status(400).json({ error: "Controller with this name already exists" });
+  if (controllers.some((c) => c.name === name)) {
+    return res
+      .status(400)
+      .json({ error: "Controller with this name already exists" });
   }
-  
-  if (!channels || typeof channels !== 'object' || Object.keys(channels).length === 0) {
-    return res.status(400).json({ error: "Channels must be a non-empty list of channels and names" });
+
+  if (
+    !channels ||
+    typeof channels !== "object" ||
+    Object.keys(channels).length === 0
+  ) {
+    return res
+      .status(400)
+      .json({
+        error: "Channels must be a non-empty list of channels and names",
+      });
   }
-  const newController: PowerController = { id: controllers.length + 1, name: name, url: url, channels: channels };
+  const newController: PowerController = {
+    id: controllers.length + 1,
+    name: name,
+    url: url,
+    channels: channels,
+  };
   controllers.push(newController);
-  fs.writeFileSync('../data/controller-list.json', JSON.stringify(controllers, null, 2));
+  fs.writeFileSync(
+    "../data/controller-list.json",
+    JSON.stringify(controllers, null, 2)
+  );
   res.status(201).json(newController);
 });
 
-app.post('/deletechannel/:controllerid/:channelName', (req: Request, res: Response) => {
-  const controllerid = parseInt(req.params.controllerid, 10);
-  const channelName = req.params.channelName;
-  const controller = controllers.find(c => c.id === controllerid);  
-  if (!controller) {
-    return res.status(404).json({ error: "Controller not found" });
-  }
+app.post(
+  "/deletechannel/:controllerid/:channelName",
+  (req: Request, res: Response) => {
+    const controllerid = parseInt(req.params.controllerid, 10);
+    const channelName = req.params.channelName;
+    const controller = controllers.find((c) => c.id === controllerid);
+    if (!controller) {
+      return res.status(404).json({ error: "Controller not found" });
+    }
 
-  if (!(channelName in controller.channels)) {
-    return res.status(404).json({ error: "Channel not found" });
+    if (!(channelName in controller.channels)) {
+      return res.status(404).json({ error: "Channel not found" });
+    }
+    // Delete channel
+    controller.channels = controller.channels.filter(
+      (c) => c.name !== channelName
+    );
+    // Save to file
+    fs.writeFileSync(
+      "../data/controller-list.json",
+      JSON.stringify(controllers, null, 2)
+    );
+    res.json(controller);
   }
-  // Delete channel
-  controller.channels = controller.channels.filter(c => c.name !== channelName);
-  // Save to file
-  fs.writeFileSync('../data/controller-list.json', JSON.stringify(controllers, null, 2));
-  res.json(controller);
-});
+);
 
-app.post('/updatechannelname/:id/:channelName/:newName', (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  const channelName = req.params.channelName;
-  const newName = req.params.newName;
-  const controller = controllers.find(c => c.id === id);
+app.post(
+  "/updatechannelname/:id/:channelName/:newName",
+  (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    const channelName = req.params.channelName;
+    const newName = req.params.newName;
+    const controller = controllers.find((c) => c.id === id);
 
-  if (!controller) {
-    return res.status(404).json({ error: "Controller not found" });
+    if (!controller) {
+      return res.status(404).json({ error: "Controller not found" });
+    }
+
+    if (!(channelName in controller.channels)) {
+      return res.status(404).json({ error: "Channel not found" });
+    }
+    // Update channel name
+    const oldChannel = controller.channels.find((c) => c.name === channelName);
+    controller.channels.push({
+      name: newName,
+      state: oldChannel!.state,
+      number: oldChannel!.number,
+    });
+    controller.channels = controller.channels.filter(
+      (c) => c.name !== channelName
+    );
+    // Save to file
+    fs.writeFileSync(
+      "../conf/controller-list.json",
+      JSON.stringify(controllers, null, 2)
+    );
+    res.json(controller);
   }
-
-  if (!(channelName in controller.channels)) {
-    return res.status(404).json({ error: "Channel not found" });
-  }
-  // Update channel name
-  const oldChannel = controller.channels.find(c => c.name === channelName);
-  controller.channels.push({ name: newName, state: oldChannel!.state, number: oldChannel!.number });
-  controller.channels = controller.channels.filter(c => c.name !== channelName);
-  // Save to file
-  fs.writeFileSync('../conf/controller-list.json', JSON.stringify(controllers, null, 2));
-  res.json(controller);
-});
+);
 
 // Endpoint: GET /channels
-app.get('/controllers', (req: Request, res: Response) => {
+app.get("/controllers", (req: Request, res: Response) => {
   res.json(controllers);
 });
 
 // Endpoint: GET /name
-app.get('/controllerbyname/:name', (req: Request, res: Response) => {
+app.get("/controllerbyname/:name", (req: Request, res: Response) => {
   const name = req.params.name;
-  const controller = controllers.find(c => c.name === name);
+  const controller = controllers.find((c) => c.name === name);
   if (!controller) {
     return res.status(404).json({ error: "Controller not found" });
   }
   res.json(controller);
 });
 
-app.get('/controller/:id', (req: Request, res: Response) => {
+app.get("/controller/:id", (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
-  const controller = controllers.find(c => c.id === id);
+  const controller = controllers.find((c) => c.id === id);
   if (!controller) {
     return res.status(404).json({ error: "Controller not found" });
   }
   res.json(controller);
 });
 
-app.post('/deletecontroller/:id', (req: Request, res: Response) => {
+app.post("/deletecontroller/:id", (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   console.log(`Deleting controller with id: ${id}`);
-  const index = controllers.findIndex(c => c.id === id);
+  const index = controllers.findIndex((c) => c.id === id);
   if (index === -1) {
     return res.status(404).json({ error: "Controller not found", id: id });
   }
   controllers.splice(index, 1);
-  fs.writeFileSync('../data/controller-list.json', JSON.stringify(controllers, null, 2));
+  fs.writeFileSync(
+    "../data/controller-list.json",
+    JSON.stringify(controllers, null, 2)
+  );
   res.json({ message: "Controller deleted successfully" });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Application environment: ${app.get('env')}`);
+  console.log(`Application environment: ${app.get("env")}`);
   console.log(`Application variables: ${process.env}`);
   console.log(`Server running at http://localhost:${PORT}`);
 });
