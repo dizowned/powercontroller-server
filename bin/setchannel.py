@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
+from asyncio import sleep
+from filelock import FileLock
 import sys,json,os
 
 def main(self=None):
-
+        
     if len(sys.argv) != 4:
         print("Usage: setchannel.py <controllerid> <channelnumber> <state>")
         sys.exit(1)
@@ -34,10 +36,11 @@ def main(self=None):
     channel['state'] = state
 
     # Save updated controller list
-    with open('./config/controller-list.json', 'w') as f:
-        json.dump(controllers, f, indent=2)
-
-    print(f"Set channel number: {channelnumber} of controller {controllerid} to {'ON' if state else 'OFF'}")
+    lock_path="channel_update.lock"
+    with FileLock(lock_path, timeout=10):
+        file = open('./config/controller-list.json', 'w')
+        json.dump(controllers, file, indent=2)
+        print(f"Set channel number: {channelnumber} of controller {controllerid} to {'ON' if state else 'OFF'}")
     
     
 if __name__ == "__main__":
