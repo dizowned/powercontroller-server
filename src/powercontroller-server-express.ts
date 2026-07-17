@@ -1,15 +1,152 @@
 import express, { Request, Response } from "express";
 import { exec } from "child_process";
-import helmet, { strictTransportSecurity } from "helmet";
+import helmet from "helmet";
 import cors from "cors";
 import fs from "fs";
+import path from "path";
 import controllerlist from "../config/controller-list.json";
 import PowerController from "./types/controller";
-import { setDefaultCACertificates } from "tls";
 
 const app = express();
 const PORT = 3000;
 const controllers: PowerController[] = controllerlist as PowerController[];
+const DATA_FILE_PATH = path.join(process.cwd(), "data", "controller-list.json");
+const DEFAULT_CHANNEL_POLL_INTERVAL_MS = Math.max(
+  Number.parseInt(process.env.DEFAULT_CHANNEL_POLL_INTERVAL_MS ?? "30000", 10),
+  1000
+);
+const MIN_CHANNEL_POLL_INTERVAL_MS = 1000;
+
+type PollStatus = {
+  lastPolledAt: string | null;
+  lastPollStartedAt: string | null;
+  lastPollError: string | null;
+};
+
+const pollTimers = new Map<string, NodeJS.Timeout>();
+const pollQueues = new Map<string, Promise<void>>();
+const pollStatuses = new Map<string, PollStatus>();
+
+const getChannelKey = (controllerid: number, channelNumber: number): string =>
+  `${controllerid}:${channelNumber}`;
+
+const getChannelPollStatus = (
+  controllerid: number,
+  channelNumber: number
+): PollStatus =>
+  pollStatuses.get(getChannelKey(controllerid, channelNumber)) ?? {
+    lastPolledAt: null,
+    lastPollStartedAt: null,
+    lastPollError: null,
+  };
+
+const normalizePollingIntervalMs = (pollIntervalMs?: number): number => {
+  if (!Number.isFinite(pollIntervalMs)) {
+    return DEFAULT_CHANNEL_POLL_INTERVAL_MS;
+  }
+  return Math.max(Math.floor(pollIntervalMs as number), MIN_CHANNEL_POLL_INTERVAL_MS);
+};
+
+const persistControllers = (): void => {
+  fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(controllers, null, 2));
+};
+
+const enqueuePollEvent = (
+  controllerid: number,
+  channelNumber: number,
+  task: () => Promise<void>
+): void => {
+  const channelKey = getChannelKey(controllerid, channelNumber);
+  const previousTask = pollQueues.get(channelKey) ?? Promise.resolve();
+  const nextTask = previousTask
+    .catch(() => undefined)
+    .then(async () => {
+      await task();
+    });
+  pollQueues.set(channelKey, nextTask);
+  void nextTask.finally(() => {
+    if (pollQueues.get(channelKey) === nextTask) {
+      pollQueues.delete(channelKey);
+    }
+  });
+};
+
+const executeChannelPoll = async (
+  controller: PowerController,
+  channelNumber: number
+): Promise<void> => {
+  const channelKey = getChannelKey(controller.id, channelNumber);
+  const pollStatus = getChannelPollStatus(controller.id, channelNumber);
+  pollStatus.lastPollStartedAt = new Date().toISOString();
+  pollStatus.lastPollError = null;
+  pollStatuses.set(channelKey, pollStatus);
+  const controllerStillExists = controllers.find((c) => c.id === controller.id);
+  const channelStillExists = controllerStillExists?.channels.find(
+    (c) => c.number === channelNumber
+  );
+  if (!controllerStillExists || !channelStillExists) {
+    throw new Error("Controller or channel no longer exists");
+  }
+  pollStatus.lastPolledAt = new Date().toISOString();
+  pollStatuses.set(channelKey, pollStatus);
+};
+
+const queueChannelPoll = (
+  controller: PowerController,
+  channelNumber: number
+): void => {
+  enqueuePollEvent(controller.id, channelNumber, async () => {
+    try {
+      await executeChannelPoll(controller, channelNumber);
+    } catch (error) {
+      const pollStatus = getChannelPollStatus(controller.id, channelNumber);
+      pollStatus.lastPollError =
+        error instanceof Error ? error.message : "Unknown poll failure";
+      pollStatuses.set(getChannelKey(controller.id, channelNumber), pollStatus);
+    }
+  });
+};
+
+const stopPollingChannel = (controllerid: number, channelNumber: number): void => {
+  const channelKey = getChannelKey(controllerid, channelNumber);
+  const timer = pollTimers.get(channelKey);
+  if (timer) {
+    clearInterval(timer);
+    pollTimers.delete(channelKey);
+  }
+  pollQueues.delete(channelKey);
+  pollStatuses.delete(channelKey);
+};
+
+const startPollingChannel = (
+  controller: PowerController,
+  channelNumber: number,
+  pollIntervalMs?: number
+): void => {
+  stopPollingChannel(controller.id, channelNumber);
+  const effectiveIntervalMs = normalizePollingIntervalMs(pollIntervalMs);
+  const timer = setInterval(() => {
+    queueChannelPoll(controller, channelNumber);
+  }, effectiveIntervalMs);
+  pollTimers.set(getChannelKey(controller.id, channelNumber), timer);
+};
+
+const initializePolling = (): void => {
+  let shouldPersist = false;
+  controllers.forEach((controller) => {
+    controller.channels.forEach((channel) => {
+      const normalizedInterval = normalizePollingIntervalMs(channel.pollIntervalMs);
+      if (channel.pollIntervalMs !== normalizedInterval) {
+        channel.pollIntervalMs = normalizedInterval;
+        shouldPersist = true;
+      }
+      startPollingChannel(controller, channel.number, normalizedInterval);
+    });
+  });
+  if (shouldPersist) {
+    persistControllers();
+  }
+};
 
 /*
 app.use(helmet.contentSecurityPolicy({
@@ -56,6 +193,61 @@ app.get("/channels/:controllerid", (req: Request, res: Response) => {
   }
   res.json(controller.channels);
 });
+
+app.get(
+  "/channelpolling/:controllerid/:channelNumber",
+  (req: Request, res: Response) => {
+    const controllerid = parseInt(req.params.controllerid, 10);
+    const channelNumber = parseInt(req.params.channelNumber, 10);
+    const controller = controllers.find((c) => c.id === controllerid);
+    if (!controller) {
+      return res.status(404).json({ error: "Controller not found" });
+    }
+    const channel = controller.channels.find((c) => c.number === channelNumber);
+    if (!channel) {
+      return res.status(404).json({ error: "Channel not found" });
+    }
+    const channelKey = getChannelKey(controllerid, channelNumber);
+    return res.json({
+      controllerid,
+      channelNumber,
+      pollIntervalMs: normalizePollingIntervalMs(channel.pollIntervalMs),
+      queuePending: pollQueues.has(channelKey),
+      ...getChannelPollStatus(controllerid, channelNumber),
+    });
+  }
+);
+
+app.post(
+  "/channelpollinginterval/:controllerid/:channelNumber/:pollIntervalMs",
+  (req: Request, res: Response) => {
+    const controllerid = parseInt(req.params.controllerid, 10);
+    const channelNumber = parseInt(req.params.channelNumber, 10);
+    const pollIntervalMsParam = parseInt(req.params.pollIntervalMs, 10);
+    if (!Number.isFinite(pollIntervalMsParam)) {
+      return res.status(400).json({ error: "Invalid polling interval" });
+    }
+    const controller = controllers.find((c) => c.id === controllerid);
+    if (!controller) {
+      return res.status(404).json({ error: "Controller not found" });
+    }
+    const channel = controller.channels.find((c) => c.number === channelNumber);
+    if (!channel) {
+      return res.status(404).json({ error: "Channel not found" });
+    }
+    const normalizedPollingIntervalMs =
+      normalizePollingIntervalMs(pollIntervalMsParam);
+    channel.pollIntervalMs = normalizedPollingIntervalMs;
+    startPollingChannel(controller, channel.number, channel.pollIntervalMs);
+    persistControllers();
+    return res.status(200).json({
+      message: "Channel polling interval updated",
+      controllerid,
+      channelNumber,
+      pollIntervalMs: normalizedPollingIntervalMs,
+    });
+  }
+);
 
 app.get(
   "/channelbyname/:controllerid/:channelName",
@@ -144,13 +336,16 @@ app.post("/addchannel", (req: Request, res: Response) => {
     id: controllers.length + 1,
     name: name,
     url: url,
-    channels: channels,
+    channels: channels.map((channel: PowerController["channels"][number]) => ({
+      ...channel,
+      pollIntervalMs: normalizePollingIntervalMs(channel.pollIntervalMs),
+    })),
   };
   controllers.push(newController);
-  fs.writeFileSync(
-    "../data/controller-list.json",
-    JSON.stringify(controllers, null, 2)
-  );
+  newController.channels.forEach((channel) => {
+    startPollingChannel(newController, channel.number, channel.pollIntervalMs);
+  });
+  persistControllers();
   res.status(201).json(newController);
 });
 
@@ -164,18 +359,18 @@ app.post(
       return res.status(404).json({ error: "Controller not found" });
     }
 
-    if (!(channelName in controller.channels)) {
+    if (!controller.channels.some((c) => c.name === channelName)) {
       return res.status(404).json({ error: "Channel not found" });
     }
     // Delete channel
+    const channel = controller.channels.find((c) => c.name === channelName);
     controller.channels = controller.channels.filter(
       (c) => c.name !== channelName
     );
-    // Save to file
-    fs.writeFileSync(
-      "../data/controller-list.json",
-      JSON.stringify(controllers, null, 2)
-    );
+    if (channel) {
+      stopPollingChannel(controller.id, channel.number);
+    }
+    persistControllers();
     res.json(controller);
   }
 );
@@ -192,7 +387,7 @@ app.post(
       return res.status(404).json({ error: "Controller not found" });
     }
 
-    if (!(channelName in controller.channels)) {
+    if (!controller.channels.some((c) => c.name === channelName)) {
       return res.status(404).json({ error: "Channel not found" });
     }
     // Update channel name
@@ -205,11 +400,7 @@ app.post(
     controller.channels = controller.channels.filter(
       (c) => c.name !== channelName
     );
-    // Save to file
-    fs.writeFileSync(
-      "../conf/controller-list.json",
-      JSON.stringify(controllers, null, 2)
-    );
+    persistControllers();
     res.json(controller);
   }
 );
@@ -245,15 +436,16 @@ app.post("/deletecontroller/:id", (req: Request, res: Response) => {
   if (index === -1) {
     return res.status(404).json({ error: "Controller not found", id: id });
   }
+  controllers[index].channels.forEach((channel) => {
+    stopPollingChannel(id, channel.number);
+  });
   controllers.splice(index, 1);
-  fs.writeFileSync(
-    "../data/controller-list.json",
-    JSON.stringify(controllers, null, 2)
-  );
+  persistControllers();
   res.json({ message: "Controller deleted successfully" });
 });
 
 // Start server
+initializePolling();
 app.listen(PORT, () => {
   console.log(`Application environment: ${app.get("env")}`);
   console.log(`Application variables: ${process.env}`);

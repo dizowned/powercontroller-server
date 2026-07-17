@@ -1,7 +1,8 @@
 export interface channel{
   name: string; 
   state: boolean; 
-  number: number 
+  number: number;
+  pollIntervalMs?: number;
 }
 export interface PowerController {
   id: number;
