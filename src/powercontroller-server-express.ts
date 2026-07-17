@@ -368,7 +368,13 @@ app.post("/addchannel", (req: Request, res: Response) => {
   if (
     !channels ||
     !Array.isArray(channels) ||
-    channels.length === 0
+    channels.length === 0 ||
+    channels.some(
+      (newChannel) =>
+        typeof newChannel?.name !== "string" ||
+        typeof newChannel?.state !== "boolean" ||
+        typeof newChannel?.number !== "number"
+    )
   ) {
     return res
       .status(400)
@@ -411,9 +417,7 @@ app.post(
     controller.channels = controller.channels.filter(
       (c) => c.name !== channelName
     );
-    if (channel) {
-      stopPollingChannel(controller.id, channel.number);
-    }
+    stopPollingChannel(controller.id, channel.number);
     persistControllers();
     res.json(controller);
   }
@@ -440,6 +444,7 @@ app.post(
       name: newName,
       state: oldChannel.state,
       number: oldChannel.number,
+      pollIntervalMs: oldChannel.pollIntervalMs,
     });
     controller.channels = controller.channels.filter(
       (c) => c.name !== channelName

@@ -78,6 +78,12 @@ const executeChannelPoll = async (controller, channelNumber) => {
     if (!controllerStillExists || !channelStillExists) {
         throw new Error("Controller or channel no longer exists");
     }
+    const persistedControllerData = JSON.parse(fs_1.default.readFileSync(DATA_FILE_PATH, "utf8"));
+    const persistedController = persistedControllerData.find((c) => c.id === controller.id);
+    const persistedChannel = persistedController?.channels.find((c) => c.number === channelNumber);
+    if (persistedChannel && typeof persistedChannel.state === "boolean") {
+        channelStillExists.state = persistedChannel.state;
+    }
     pollStatus.lastPolledAt = new Date().toISOString();
     pollStatuses.set(channelKey, pollStatus);
 };
@@ -300,11 +306,11 @@ app.post("/deletechannel/:controllerid/:channelName", (req, res) => {
     if (!controller) {
         return res.status(404).json({ error: "Controller not found" });
     }
-    if (!controller.channels.some((c) => c.name === channelName)) {
+    const channel = controller.channels.find((c) => c.name === channelName);
+    if (!channel) {
         return res.status(404).json({ error: "Channel not found" });
     }
     // Delete channel
-    const channel = controller.channels.find((c) => c.name === channelName);
     controller.channels = controller.channels.filter((c) => c.name !== channelName);
     if (channel) {
         stopPollingChannel(controller.id, channel.number);
@@ -320,11 +326,11 @@ app.post("/updatechannelname/:id/:channelName/:newName", (req, res) => {
     if (!controller) {
         return res.status(404).json({ error: "Controller not found" });
     }
-    if (!controller.channels.some((c) => c.name === channelName)) {
+    const oldChannel = controller.channels.find((c) => c.name === channelName);
+    if (!oldChannel) {
         return res.status(404).json({ error: "Channel not found" });
     }
     // Update channel name
-    const oldChannel = controller.channels.find((c) => c.name === channelName);
     controller.channels.push({
         name: newName,
         state: oldChannel.state,
