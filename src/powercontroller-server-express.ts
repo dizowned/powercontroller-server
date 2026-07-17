@@ -3,6 +3,8 @@ import { exec } from "child_process";
 import helmet from "helmet";
 import cors from "cors";
 import fs from "fs";
+import http from "http";
+import https from "https";
 import path from "path";
 import controllerlist from "../config/controller-list.json";
 import PowerController from "./types/controller";
@@ -11,11 +13,15 @@ const app = express();
 const PORT = 3000;
 const controllers: PowerController[] = controllerlist as PowerController[];
 const DATA_FILE_PATH = path.join(process.cwd(), "data", "controller-list.json");
-const DEFAULT_CHANNEL_POLL_INTERVAL_MS = Math.max(
-  Number.parseInt(process.env.DEFAULT_CHANNEL_POLL_INTERVAL_MS ?? "30000", 10),
-  1000
-);
 const MIN_CHANNEL_POLL_INTERVAL_MS = 1000;
+const MAX_CHANNEL_POLL_INTERVAL_MS = 60 * 60 * 1000;
+const DEFAULT_CHANNEL_POLL_INTERVAL_MS = Math.min(
+  Math.max(
+    Number.parseInt(process.env.DEFAULT_CHANNEL_POLL_INTERVAL_MS ?? "30000", 10),
+    MIN_CHANNEL_POLL_INTERVAL_MS
+  ),
+  MAX_CHANNEL_POLL_INTERVAL_MS
+);
 
 type PollStatus = {
   lastPolledAt: string | null;
@@ -44,7 +50,10 @@ const normalizePollingIntervalMs = (pollIntervalMs?: number): number => {
   if (!Number.isFinite(pollIntervalMs)) {
     return DEFAULT_CHANNEL_POLL_INTERVAL_MS;
   }
-  return Math.max(Math.floor(pollIntervalMs as number), MIN_CHANNEL_POLL_INTERVAL_MS);
+  return Math.min(
+    Math.max(Math.floor(pollIntervalMs), MIN_CHANNEL_POLL_INTERVAL_MS),
+    MAX_CHANNEL_POLL_INTERVAL_MS
+  );
 };
 
 const persistControllers = (): void => {
@@ -64,12 +73,48 @@ const enqueuePollEvent = (
       await task();
     });
   pollQueues.set(channelKey, nextTask);
-  void nextTask.finally(() => {
+  nextTask.finally(() => {
     if (pollQueues.get(channelKey) === nextTask) {
       pollQueues.delete(channelKey);
     }
   });
 };
+
+const pollRemoteChannelState = (
+  controllerUrl: string,
+  channelNumber: number
+): Promise<boolean> =>
+  new Promise((resolve, reject) => {
+    const targetUrl = new URL(`/channel/${channelNumber}`, controllerUrl);
+    const requestClient = targetUrl.protocol === "https:" ? https : http;
+    const request = requestClient.request(targetUrl, { method: "GET" }, (res) => {
+      const statusCode = res.statusCode ?? 500;
+      if (statusCode < 200 || statusCode >= 300) {
+        res.resume();
+        reject(new Error(`Polling request failed with status ${statusCode}`));
+        return;
+      }
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () => {
+        try {
+          const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+          if (!payload || typeof payload.state !== "boolean") {
+            reject(new Error("Polling response did not include a boolean state"));
+            return;
+          }
+          resolve(payload.state);
+        } catch {
+          reject(new Error("Polling response was not valid JSON"));
+        }
+      });
+    });
+    request.setTimeout(5000, () => {
+      request.destroy(new Error("Polling request timed out"));
+    });
+    request.on("error", reject);
+    request.end();
+  });
 
 const executeChannelPoll = async (
   controller: PowerController,
@@ -87,6 +132,11 @@ const executeChannelPoll = async (
   if (!controllerStillExists || !channelStillExists) {
     throw new Error("Controller or channel no longer exists");
   }
+  const remoteState = await pollRemoteChannelState(
+    controllerStillExists.url,
+    channelNumber
+  );
+  channelStillExists.state = remoteState;
   pollStatus.lastPolledAt = new Date().toISOString();
   pollStatuses.set(channelKey, pollStatus);
 };
@@ -131,7 +181,7 @@ const startPollingChannel = (
   pollTimers.set(getChannelKey(controller.id, channelNumber), timer);
 };
 
-const initializePolling = (): void => {
+const initializeAndNormalizePolling = (): void => {
   let shouldPersist = false;
   controllers.forEach((controller) => {
     controller.channels.forEach((channel) => {
@@ -224,8 +274,14 @@ app.post(
     const controllerid = parseInt(req.params.controllerid, 10);
     const channelNumber = parseInt(req.params.channelNumber, 10);
     const pollIntervalMsParam = parseInt(req.params.pollIntervalMs, 10);
-    if (!Number.isFinite(pollIntervalMsParam)) {
-      return res.status(400).json({ error: "Invalid polling interval" });
+    if (
+      !Number.isFinite(pollIntervalMsParam) ||
+      pollIntervalMsParam < MIN_CHANNEL_POLL_INTERVAL_MS ||
+      pollIntervalMsParam > MAX_CHANNEL_POLL_INTERVAL_MS
+    ) {
+      return res.status(400).json({
+        error: `Invalid polling interval: must be between ${MIN_CHANNEL_POLL_INTERVAL_MS}ms and ${MAX_CHANNEL_POLL_INTERVAL_MS}ms`,
+      });
     }
     const controller = controllers.find((c) => c.id === controllerid);
     if (!controller) {
@@ -323,8 +379,8 @@ app.post("/addchannel", (req: Request, res: Response) => {
 
   if (
     !channels ||
-    typeof channels !== "object" ||
-    Object.keys(channels).length === 0
+    !Array.isArray(channels) ||
+    channels.length === 0
   ) {
     return res
       .status(400)
@@ -336,9 +392,9 @@ app.post("/addchannel", (req: Request, res: Response) => {
     id: controllers.length + 1,
     name: name,
     url: url,
-    channels: channels.map((channel: PowerController["channels"][number]) => ({
-      ...channel,
-      pollIntervalMs: normalizePollingIntervalMs(channel.pollIntervalMs),
+    channels: channels.map((newChannel: PowerController["channels"][number]) => ({
+      ...newChannel,
+      pollIntervalMs: normalizePollingIntervalMs(newChannel.pollIntervalMs),
     })),
   };
   controllers.push(newController);
@@ -445,7 +501,7 @@ app.post("/deletecontroller/:id", (req: Request, res: Response) => {
 });
 
 // Start server
-initializePolling();
+initializeAndNormalizePolling();
 app.listen(PORT, () => {
   console.log(`Application environment: ${app.get("env")}`);
   console.log(`Application variables: ${process.env}`);

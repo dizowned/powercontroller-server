@@ -33,6 +33,7 @@ PowerController Server is a file-based REST API that maintains an in-memory regi
   name: string;
   state: boolean;
   number: number;
+  pollIntervalMs?: number;
 }
 ```
 
@@ -62,6 +63,8 @@ PowerController Server is a file-based REST API that maintains an in-memory regi
 |--------|----------|-------------|
 | `GET` | `/channels/:controllerid` | Get all channels for a controller |
 | `GET` | `/channelbyname/:controllerid/:channelName` | Get specific channel details |
+| `GET` | `/channelpolling/:controllerid/:channelNumber` | Get polling status/config for a channel |
+| `POST` | `/channelpollinginterval/:controllerid/:channelNumber/:pollIntervalMs` | Update channel polling interval |
 | `POST` | `/deletechannel/:controllerid/:channelName` | Remove a channel |
 | `POST` | `/updatechannelname/:id/:channelName/:newName` | Rename a channel |
 
