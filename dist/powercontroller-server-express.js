@@ -14,22 +14,40 @@ const app = (0, express_1.default)();
 const PORT = 3000;
 const controllers = controller_list_json_1.default;
 const DATA_FILE_PATH = path_1.default.join(process.cwd(), "data", "controller-list.json");
-const DEFAULT_CHANNEL_POLL_INTERVAL_MS = Math.max(Number.parseInt(process.env.DEFAULT_CHANNEL_POLL_INTERVAL_MS ?? "30000", 10), 1000);
-const MIN_CHANNEL_POLL_INTERVAL_MS = 1000;
+const ALLOWED_POLL_INTERVALS_MS = [
+    1000,
+    2000,
+    5000,
+    10000,
+    30000,
+    60000,
+    300000,
+    900000,
+    1800000,
+    3600000,
+];
+const MIN_CHANNEL_POLL_INTERVAL_MS = ALLOWED_POLL_INTERVALS_MS[0];
+const MAX_CHANNEL_POLL_INTERVAL_MS = ALLOWED_POLL_INTERVALS_MS[ALLOWED_POLL_INTERVALS_MS.length - 1];
+const ENV_DEFAULT_POLL_INTERVAL_MS = Number.parseInt(process.env.DEFAULT_CHANNEL_POLL_INTERVAL_MS ?? "30000", 10);
+const DEFAULT_CHANNEL_POLL_INTERVAL_MS = ALLOWED_POLL_INTERVALS_MS.includes(ENV_DEFAULT_POLL_INTERVAL_MS)
+    ? ENV_DEFAULT_POLL_INTERVAL_MS
+    : 30000;
 const pollTimers = new Map();
 const pollQueues = new Map();
 const pollStatuses = new Map();
 const getChannelKey = (controllerid, channelNumber) => `${controllerid}:${channelNumber}`;
+const isAllowedPollingInterval = (pollIntervalMs) => ALLOWED_POLL_INTERVALS_MS.includes(pollIntervalMs);
 const getChannelPollStatus = (controllerid, channelNumber) => pollStatuses.get(getChannelKey(controllerid, channelNumber)) ?? {
     lastPolledAt: null,
     lastPollStartedAt: null,
     lastPollError: null,
 };
 const normalizePollingIntervalMs = (pollIntervalMs) => {
-    if (!Number.isFinite(pollIntervalMs)) {
+    const parsedPollIntervalMs = typeof pollIntervalMs === "number" ? pollIntervalMs : Number.NaN;
+    if (!Number.isFinite(parsedPollIntervalMs) || !isAllowedPollingInterval(parsedPollIntervalMs)) {
         return DEFAULT_CHANNEL_POLL_INTERVAL_MS;
     }
-    return Math.max(Math.floor(pollIntervalMs), MIN_CHANNEL_POLL_INTERVAL_MS);
+    return parsedPollIntervalMs;
 };
 const persistControllers = () => {
     fs_1.default.writeFileSync(DATA_FILE_PATH, JSON.stringify(controllers, null, 2));
@@ -43,7 +61,7 @@ const enqueuePollEvent = (controllerid, channelNumber, task) => {
         await task();
     });
     pollQueues.set(channelKey, nextTask);
-    void nextTask.finally(() => {
+    nextTask.finally(() => {
         if (pollQueues.get(channelKey) === nextTask) {
             pollQueues.delete(channelKey);
         }
@@ -94,7 +112,7 @@ const startPollingChannel = (controller, channelNumber, pollIntervalMs) => {
     }, effectiveIntervalMs);
     pollTimers.set(getChannelKey(controller.id, channelNumber), timer);
 };
-const initializePolling = () => {
+const initializeAndNormalizePolling = () => {
     let shouldPersist = false;
     controllers.forEach((controller) => {
         controller.channels.forEach((channel) => {
@@ -167,8 +185,11 @@ app.post("/channelpollinginterval/:controllerid/:channelNumber/:pollIntervalMs",
     const controllerid = parseInt(req.params.controllerid, 10);
     const channelNumber = parseInt(req.params.channelNumber, 10);
     const pollIntervalMsParam = parseInt(req.params.pollIntervalMs, 10);
-    if (!Number.isFinite(pollIntervalMsParam)) {
-        return res.status(400).json({ error: "Invalid polling interval" });
+    if (!Number.isFinite(pollIntervalMsParam) ||
+        !isAllowedPollingInterval(pollIntervalMsParam)) {
+        return res.status(400).json({
+            error: `Invalid polling interval: must be one of [${ALLOWED_POLL_INTERVALS_MS.join(", ")}]`,
+        });
     }
     const controller = controllers.find((c) => c.id === controllerid);
     if (!controller) {
@@ -248,8 +269,8 @@ app.post("/addchannel", (req, res) => {
             .json({ error: "Controller with this name already exists" });
     }
     if (!channels ||
-        typeof channels !== "object" ||
-        Object.keys(channels).length === 0) {
+        !Array.isArray(channels) ||
+        channels.length === 0) {
         return res
             .status(400)
             .json({
@@ -260,9 +281,9 @@ app.post("/addchannel", (req, res) => {
         id: controllers.length + 1,
         name: name,
         url: url,
-        channels: channels.map((channel) => ({
-            ...channel,
-            pollIntervalMs: normalizePollingIntervalMs(channel.pollIntervalMs),
+        channels: channels.map((newChannel) => ({
+            ...newChannel,
+            pollIntervalMs: normalizePollingIntervalMs(newChannel.pollIntervalMs),
         })),
     };
     controllers.push(newController);
@@ -349,7 +370,7 @@ app.post("/deletecontroller/:id", (req, res) => {
     res.json({ message: "Controller deleted successfully" });
 });
 // Start server
-initializePolling();
+initializeAndNormalizePolling();
 app.listen(PORT, () => {
     console.log(`Application environment: ${app.get("env")}`);
     console.log(`Application variables: ${process.env}`);

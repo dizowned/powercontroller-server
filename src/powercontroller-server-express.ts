@@ -3,8 +3,6 @@ import { exec } from "child_process";
 import helmet from "helmet";
 import cors from "cors";
 import fs from "fs";
-import http from "http";
-import https from "https";
 import path from "path";
 import controllerlist from "../config/controller-list.json";
 import PowerController from "./types/controller";
@@ -13,15 +11,31 @@ const app = express();
 const PORT = 3000;
 const controllers: PowerController[] = controllerlist as PowerController[];
 const DATA_FILE_PATH = path.join(process.cwd(), "data", "controller-list.json");
-const MIN_CHANNEL_POLL_INTERVAL_MS = 1000;
-const MAX_CHANNEL_POLL_INTERVAL_MS = 60 * 60 * 1000;
-const DEFAULT_CHANNEL_POLL_INTERVAL_MS = Math.min(
-  Math.max(
-    Number.parseInt(process.env.DEFAULT_CHANNEL_POLL_INTERVAL_MS ?? "30000", 10),
-    MIN_CHANNEL_POLL_INTERVAL_MS
-  ),
-  MAX_CHANNEL_POLL_INTERVAL_MS
+const ALLOWED_POLL_INTERVALS_MS = [
+  1000,
+  2000,
+  5000,
+  10000,
+  30000,
+  60000,
+  300000,
+  900000,
+  1800000,
+  3600000,
+] as const;
+type PollIntervalMs = (typeof ALLOWED_POLL_INTERVALS_MS)[number];
+const MIN_CHANNEL_POLL_INTERVAL_MS = ALLOWED_POLL_INTERVALS_MS[0];
+const MAX_CHANNEL_POLL_INTERVAL_MS =
+  ALLOWED_POLL_INTERVALS_MS[ALLOWED_POLL_INTERVALS_MS.length - 1];
+const ENV_DEFAULT_POLL_INTERVAL_MS = Number.parseInt(
+  process.env.DEFAULT_CHANNEL_POLL_INTERVAL_MS ?? "30000",
+  10
 );
+const DEFAULT_CHANNEL_POLL_INTERVAL_MS = ALLOWED_POLL_INTERVALS_MS.includes(
+  ENV_DEFAULT_POLL_INTERVAL_MS as PollIntervalMs
+)
+  ? (ENV_DEFAULT_POLL_INTERVAL_MS as PollIntervalMs)
+  : 30000;
 
 type PollStatus = {
   lastPolledAt: string | null;
@@ -36,6 +50,11 @@ const pollStatuses = new Map<string, PollStatus>();
 const getChannelKey = (controllerid: number, channelNumber: number): string =>
   `${controllerid}:${channelNumber}`;
 
+const isAllowedPollingInterval = (
+  pollIntervalMs: number
+): pollIntervalMs is PollIntervalMs =>
+  ALLOWED_POLL_INTERVALS_MS.includes(pollIntervalMs as PollIntervalMs);
+
 const getChannelPollStatus = (
   controllerid: number,
   channelNumber: number
@@ -47,13 +66,12 @@ const getChannelPollStatus = (
   };
 
 const normalizePollingIntervalMs = (pollIntervalMs?: number): number => {
-  if (!Number.isFinite(pollIntervalMs)) {
+  const parsedPollIntervalMs =
+    typeof pollIntervalMs === "number" ? pollIntervalMs : Number.NaN;
+  if (!Number.isFinite(parsedPollIntervalMs) || !isAllowedPollingInterval(parsedPollIntervalMs)) {
     return DEFAULT_CHANNEL_POLL_INTERVAL_MS;
   }
-  return Math.min(
-    Math.max(Math.floor(pollIntervalMs), MIN_CHANNEL_POLL_INTERVAL_MS),
-    MAX_CHANNEL_POLL_INTERVAL_MS
-  );
+  return parsedPollIntervalMs;
 };
 
 const persistControllers = (): void => {
@@ -80,42 +98,6 @@ const enqueuePollEvent = (
   });
 };
 
-const pollRemoteChannelState = (
-  controllerUrl: string,
-  channelNumber: number
-): Promise<boolean> =>
-  new Promise((resolve, reject) => {
-    const targetUrl = new URL(`/channel/${channelNumber}`, controllerUrl);
-    const requestClient = targetUrl.protocol === "https:" ? https : http;
-    const request = requestClient.request(targetUrl, { method: "GET" }, (res) => {
-      const statusCode = res.statusCode ?? 500;
-      if (statusCode < 200 || statusCode >= 300) {
-        res.resume();
-        reject(new Error(`Polling request failed with status ${statusCode}`));
-        return;
-      }
-      const chunks: Buffer[] = [];
-      res.on("data", (chunk: Buffer) => chunks.push(chunk));
-      res.on("end", () => {
-        try {
-          const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-          if (!payload || typeof payload.state !== "boolean") {
-            reject(new Error("Polling response did not include a boolean state"));
-            return;
-          }
-          resolve(payload.state);
-        } catch {
-          reject(new Error("Polling response was not valid JSON"));
-        }
-      });
-    });
-    request.setTimeout(5000, () => {
-      request.destroy(new Error("Polling request timed out"));
-    });
-    request.on("error", reject);
-    request.end();
-  });
-
 const executeChannelPoll = async (
   controller: PowerController,
   channelNumber: number
@@ -132,11 +114,18 @@ const executeChannelPoll = async (
   if (!controllerStillExists || !channelStillExists) {
     throw new Error("Controller or channel no longer exists");
   }
-  const remoteState = await pollRemoteChannelState(
-    controllerStillExists.url,
-    channelNumber
+  const persistedControllerData = JSON.parse(
+    fs.readFileSync(DATA_FILE_PATH, "utf8")
+  ) as PowerController[];
+  const persistedController = persistedControllerData.find(
+    (c) => c.id === controller.id
   );
-  channelStillExists.state = remoteState;
+  const persistedChannel = persistedController?.channels.find(
+    (c) => c.number === channelNumber
+  );
+  if (persistedChannel && typeof persistedChannel.state === "boolean") {
+    channelStillExists.state = persistedChannel.state;
+  }
   pollStatus.lastPolledAt = new Date().toISOString();
   pollStatuses.set(channelKey, pollStatus);
 };
@@ -276,11 +265,10 @@ app.post(
     const pollIntervalMsParam = parseInt(req.params.pollIntervalMs, 10);
     if (
       !Number.isFinite(pollIntervalMsParam) ||
-      pollIntervalMsParam < MIN_CHANNEL_POLL_INTERVAL_MS ||
-      pollIntervalMsParam > MAX_CHANNEL_POLL_INTERVAL_MS
+      !isAllowedPollingInterval(pollIntervalMsParam)
     ) {
       return res.status(400).json({
-        error: `Invalid polling interval: must be between ${MIN_CHANNEL_POLL_INTERVAL_MS}ms and ${MAX_CHANNEL_POLL_INTERVAL_MS}ms`,
+        error: `Invalid polling interval: must be one of [${ALLOWED_POLL_INTERVALS_MS.join(", ")}]`,
       });
     }
     const controller = controllers.find((c) => c.id === controllerid);
@@ -415,11 +403,11 @@ app.post(
       return res.status(404).json({ error: "Controller not found" });
     }
 
-    if (!controller.channels.some((c) => c.name === channelName)) {
+    const channel = controller.channels.find((c) => c.name === channelName);
+    if (!channel) {
       return res.status(404).json({ error: "Channel not found" });
     }
     // Delete channel
-    const channel = controller.channels.find((c) => c.name === channelName);
     controller.channels = controller.channels.filter(
       (c) => c.name !== channelName
     );
@@ -443,15 +431,15 @@ app.post(
       return res.status(404).json({ error: "Controller not found" });
     }
 
-    if (!controller.channels.some((c) => c.name === channelName)) {
+    const oldChannel = controller.channels.find((c) => c.name === channelName);
+    if (!oldChannel) {
       return res.status(404).json({ error: "Channel not found" });
     }
     // Update channel name
-    const oldChannel = controller.channels.find((c) => c.name === channelName);
     controller.channels.push({
       name: newName,
-      state: oldChannel!.state,
-      number: oldChannel!.number,
+      state: oldChannel.state,
+      number: oldChannel.number,
     });
     controller.channels = controller.channels.filter(
       (c) => c.name !== channelName
