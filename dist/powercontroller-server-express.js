@@ -276,7 +276,10 @@ app.post("/addchannel", (req, res) => {
     }
     if (!channels ||
         !Array.isArray(channels) ||
-        channels.length === 0) {
+        channels.length === 0 ||
+        channels.some((newChannel) => typeof newChannel?.name !== "string" ||
+            typeof newChannel?.state !== "boolean" ||
+            typeof newChannel?.number !== "number")) {
         return res
             .status(400)
             .json({
@@ -312,9 +315,7 @@ app.post("/deletechannel/:controllerid/:channelName", (req, res) => {
     }
     // Delete channel
     controller.channels = controller.channels.filter((c) => c.name !== channelName);
-    if (channel) {
-        stopPollingChannel(controller.id, channel.number);
-    }
+    stopPollingChannel(controller.id, channel.number);
     persistControllers();
     res.json(controller);
 });
@@ -335,6 +336,7 @@ app.post("/updatechannelname/:id/:channelName/:newName", (req, res) => {
         name: newName,
         state: oldChannel.state,
         number: oldChannel.number,
+        pollIntervalMs: oldChannel.pollIntervalMs,
     });
     controller.channels = controller.channels.filter((c) => c.name !== channelName);
     persistControllers();
