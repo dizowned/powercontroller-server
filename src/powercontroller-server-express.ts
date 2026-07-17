@@ -4,12 +4,15 @@ import helmet from "helmet";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
-import controllerlist from "../config/controller-list.json";
 import PowerController from "./types/controller";
 
 const app = express();
 const PORT = 3000;
-const controllers: PowerController[] = controllerlist as PowerController[];
+const CONFIG_FILE_PATH = path.join(
+  process.cwd(),
+  "config",
+  "controller-list.json"
+);
 const DATA_FILE_PATH = path.join(process.cwd(), "data", "controller-list.json");
 const ALLOWED_POLL_INTERVALS_MS = [
   1000,
@@ -74,7 +77,17 @@ const normalizePollingIntervalMs = (pollIntervalMs?: number): number => {
   return parsedPollIntervalMs;
 };
 
+const loadControllers = (): PowerController[] => {
+  const controllerFilePath = fs.existsSync(DATA_FILE_PATH)
+    ? DATA_FILE_PATH
+    : CONFIG_FILE_PATH;
+  return JSON.parse(fs.readFileSync(controllerFilePath, "utf8")) as PowerController[];
+};
+
+const controllers: PowerController[] = loadControllers();
+
 const persistControllers = (): void => {
+  fs.mkdirSync(path.dirname(DATA_FILE_PATH), { recursive: true });
   fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(controllers, null, 2));
 };
 
@@ -103,6 +116,9 @@ const executeChannelPoll = async (
   channelNumber: number
 ): Promise<void> => {
   const channelKey = getChannelKey(controller.id, channelNumber);
+  if (!pollTimers.has(channelKey)) {
+    return;
+  }
   const pollStatus = getChannelPollStatus(controller.id, channelNumber);
   pollStatus.lastPollStartedAt = new Date().toISOString();
   pollStatus.lastPollError = null;
@@ -114,9 +130,7 @@ const executeChannelPoll = async (
   if (!controllerStillExists || !channelStillExists) {
     throw new Error("Controller or channel no longer exists");
   }
-  const persistedControllerData = JSON.parse(
-    fs.readFileSync(DATA_FILE_PATH, "utf8")
-  ) as PowerController[];
+  const persistedControllerData = loadControllers();
   const persistedController = persistedControllerData.find(
     (c) => c.id === controller.id
   );
@@ -125,6 +139,9 @@ const executeChannelPoll = async (
   );
   if (persistedChannel && typeof persistedChannel.state === "boolean") {
     channelStillExists.state = persistedChannel.state;
+  }
+  if (!pollTimers.has(channelKey)) {
+    return;
   }
   pollStatus.lastPolledAt = new Date().toISOString();
   pollStatuses.set(channelKey, pollStatus);
@@ -138,6 +155,9 @@ const queueChannelPoll = (
     try {
       await executeChannelPoll(controller, channelNumber);
     } catch (error) {
+      if (!pollTimers.has(getChannelKey(controller.id, channelNumber))) {
+        return;
+      }
       const pollStatus = getChannelPollStatus(controller.id, channelNumber);
       pollStatus.lastPollError =
         error instanceof Error ? error.message : "Unknown poll failure";
